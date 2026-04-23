@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-23
+
+- Added "Salvatore Load Workflow and Extract Prompt" node - Accepts JSON workflow content as STRING input and extracts positive prompts from CLIPTextEncode nodes. Ideal for remote workflow JSON files.
+
 ## 2024-06-19
 
 - Added resolution aspect ratios to SDXL quick latent/quick resolution nodes
