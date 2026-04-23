@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(sed *)"
+      "Bash(sed *)",
+      "Bash(python3 *)"
     ]
   },
   "$version": 3
