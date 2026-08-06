@@ -62,7 +62,8 @@ class SalvatoreReadPrompt:
             }
     
     CATEGORY = "Salvatore Nodes/image"
-    
+    OUTPUT_NODE = True
+
     RETURN_TYPES = ("IMAGE", "STRING", "STRING", "INT", "INT", "FLOAT", "INT", "INT", "STRING")
     RETURN_NAMES = ("image", "positive", "negative", "seed", "steps", "cfg", "width", "height", "positive_magic")
     FUNCTION = "get_image_data"
@@ -180,7 +181,20 @@ class SalvatoreReadPrompt:
                 if verbose == "true":
                     print(f"Error extracting workflow prompts: {e}")
 
-        return (image, positive, negative, seed, steps, cfg, width, height, positive_magic)
+        # Parse subfolder/filename for the UI preview
+        image_name = image if isinstance(image, str) else ""
+        subfolder = ""
+        if "/" in image_name:
+            parts = image_name.rsplit("/", 1)
+            subfolder = parts[0]
+            image_name = parts[1]
+
+        return {
+            "ui": {
+                "images": [{"filename": image_name, "subfolder": subfolder, "type": "input"}]
+            },
+            "result": (image, positive, negative, seed, steps, cfg, width, height, positive_magic)
+        }
 
     def extract_positive_from_workflow(self, workflow_data, processed_nodes):
         """Extract positive prompts from workflow nodes."""
