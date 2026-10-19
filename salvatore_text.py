@@ -164,11 +164,191 @@ class SalvatorePromptWeight:
         return (new_string,)
 
 
+class _SalvatoreAnyType(str):
+    """Wildcard type that matches any ComfyUI socket type."""
+    def __ne__(self, __value: object) -> bool:
+        return False
+
+
+ANY_TYPE = _SalvatoreAnyType("*")
+
+# Store pending confirmation states keyed by node unique_id
+_PENDING_CONFIRMATIONS = {}
+_CONFIRM_LOCK = None
+
+try:
+    import threading
+    _CONFIRM_LOCK = threading.Lock()
+except ImportError:
+    pass
+
+
+def _register_confirm_routes():
+    """Register PromptServer HTTP routes for the Salvatore Text Box confirm button."""
+    try:
+        from server import PromptServer
+        from aiohttp import web
+
+        if PromptServer.instance is None:
+            return
+
+        @PromptServer.instance.routes.post("/salvatore/text_confirm")
+        async def salvatore_text_confirm(request):
+            try:
+                data = await request.json()
+            except Exception as e:
+                return web.json_response({"status": "error", "message": str(e)}, status=400)
+
+            node_id = str(data.get("node_id", ""))
+            confirmed_text = data.get("text", "")
+            action = data.get("action", "confirm")
+
+            if _CONFIRM_LOCK is not None:
+                with _CONFIRM_LOCK:
+                    entry = _PENDING_CONFIRMATIONS.get(node_id)
+                    if entry is not None:
+                        entry["text"] = confirmed_text
+                        entry["action"] = action
+                        entry["event"].set()
+                        return web.json_response({"status": "ok", "node_id": node_id})
+
+            return web.json_response({"status": "not_waiting", "node_id": node_id})
+
+    except Exception:
+        # PromptServer may not be initialized when importing outside ComfyUI runtime
+        pass
+
+
+_register_confirm_routes()
+
+
+class SalvatoreTextBox:
+    """
+    Editable text box node that accepts any text as input, optionally renders Markdown,
+    and optionally displays a Confirm ('Go') button that pauses execution until pressed.
+    """
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "text": ("STRING", {"default": "", "multiline": False}),
+                "render_markdown": ("BOOLEAN", {"default": False}),
+                "wait_for_confirmation": ("BOOLEAN", {"default": False}),
+            },
+            "optional": {
+                "input_text": (ANY_TYPE, {"forceInput": True}),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("text",)
+    FUNCTION = "process_text"
+    OUTPUT_NODE = True
+    CATEGORY = "Salvatore Nodes/text"
+
+    @classmethod
+    def IS_CHANGED(s, text="", render_markdown=False, wait_for_confirmation=False, input_text=None, unique_id=None):
+        if wait_for_confirmation:
+            return float("nan")
+        return (text, render_markdown, wait_for_confirmation, str(input_text))
+
+    @staticmethod
+    def _to_text(val):
+        if val is None:
+            return ""
+        if isinstance(val, str):
+            return val
+        if isinstance(val, (dict, list, tuple)):
+            try:
+                import json
+                return json.dumps(val, indent=2, ensure_ascii=False)
+            except Exception:
+                return str(val)
+        return str(val)
+
+    @staticmethod
+    def _send_ws_update(node_id, text, waiting, render_markdown):
+        try:
+            from server import PromptServer
+            if PromptServer.instance is not None:
+                PromptServer.instance.send_sync(
+                    "salvatore.text_box.update",
+                    {
+                        "node_id": str(node_id),
+                        "text": text,
+                        "waiting": bool(waiting),
+                        "render_markdown": bool(render_markdown),
+                    },
+                )
+        except Exception:
+            pass
+
+    def process_text(self, text="", render_markdown=False, wait_for_confirmation=False, input_text=None, unique_id=None):
+        import threading
+        import time
+
+        node_id = str(unique_id) if unique_id is not None else ""
+
+        # If input_text is connected, show it in the text box; otherwise use the text box's own value
+        if input_text is not None:
+            current_text = self._to_text(input_text)
+        else:
+            current_text = self._to_text(text)
+
+        if not wait_for_confirmation or not node_id:
+            self._send_ws_update(node_id, current_text, False, render_markdown)
+            return {"ui": {"text": [current_text]}, "result": (current_text,)}
+
+        # Pause and wait for the user to press the Confirm ("Go") button
+        event = threading.Event()
+        entry = {
+            "event": event,
+            "text": current_text,
+            "action": "confirm",
+        }
+        with _CONFIRM_LOCK:
+            _PENDING_CONFIRMATIONS[node_id] = entry
+
+        self._send_ws_update(node_id, current_text, True, render_markdown)
+
+        try:
+            import comfy.model_management as model_management
+        except Exception:
+            model_management = None
+
+        try:
+            while not event.is_set():
+                if model_management is not None:
+                    model_management.throw_exception_if_processing_interrupted()
+                event.wait(timeout=0.1)
+        except Exception:
+            with _CONFIRM_LOCK:
+                _PENDING_CONFIRMATIONS.pop(node_id, None)
+            self._send_ws_update(node_id, current_text, False, render_markdown)
+            raise
+
+        with _CONFIRM_LOCK:
+            finished_entry = _PENDING_CONFIRMATIONS.pop(node_id, entry)
+
+        final_text = self._to_text(finished_entry.get("text", current_text))
+        self._send_ws_update(node_id, final_text, False, render_markdown)
+
+        return {"ui": {"text": [final_text]}, "result": (final_text,)}
+
+
 NODE_CLASS_MAPPINGS = {
     "SalvatoreTimeString": SalvatoreTimeString,
     "SalvatoreSimplePatternReplace": SalvatoreSimplePatternReplace,
     "SalvatoreStringAppend": SalvatoreStringAppend,
     "SalvatorePromptWeight": SalvatorePromptWeight,
+    "SalvatoreTextBox": SalvatoreTextBox,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -176,4 +356,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SalvatoreSimplePatternReplace": "Salvatore Simple Pattern Replace",
     "SalvatoreStringAppend": "Salvatore Simple String Combine",
     "SalvatorePromptWeight": "Salvatore Prompt Weight",
+    "SalvatoreTextBox": "Salvatore Text Box",
 }
+

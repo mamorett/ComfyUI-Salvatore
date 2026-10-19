@@ -69,6 +69,8 @@ Nodes are organized into the following categories:
 - **Salvatore Simple Pattern Replace** - Replace patterns in string with values from a list.
 - **Salvatore Simple String Combine** - Append or prepend string with optional separator.
 - **Salvatore Prompt Weight** - Add weight to prompt text using `(text:weight)` syntax.
+- **Salvatore Text Box** - Editable text box that can take any text as input, optionally render Markdown (Split / Edit / Preview modes), and optionally display a **Go** confirm button that pauses workflow execution until pressed (outputting the edited text).
+
 
 ### Salvatore Nodes/IO
 
