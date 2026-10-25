@@ -70,6 +70,8 @@ Nodes are organized into the following categories:
 - **Salvatore Simple String Combine** - Append or prepend string with optional separator.
 - **Salvatore Prompt Weight** - Add weight to prompt text using `(text:weight)` syntax.
 - **Salvatore Text Box** - Editable text box that can take any text as input, optionally render Markdown (Split / Edit / Preview modes), and optionally display a **Go** confirm button that pauses workflow execution until pressed (outputting the edited text).
+- **Salvatore Text To Clipboard** - Copies input text into ComfyUI's internal clipboard storage (with optional named clipboard slots). Available across different workflow runs without external dependencies.
+- **Salvatore Text From Clipboard** - Retrieves and outputs text from ComfyUI's internal clipboard storage across different workflow runs.
 
 
 ### Salvatore Nodes/IO

@@ -2,9 +2,12 @@
 Salvatore Nodes - Text
 String manipulation and text processing nodes.
 """
+import json
 import os
-import re
 import random
+import re
+import tempfile
+import threading
 from datetime import datetime
 
 # Import utilities directly from the file
@@ -343,12 +346,157 @@ class SalvatoreTextBox:
         return {"ui": {"text": [final_text]}, "result": (final_text,)}
 
 
+# ---------------------------------------------------------------------------
+# Internal Clipboard Storage
+# ---------------------------------------------------------------------------
+
+_CLIPBOARD_STORE = {}
+_CLIPBOARD_LOCK = threading.Lock()
+_CLIPBOARD_FILE = os.path.join(tempfile.gettempdir(), "comfyui_salvatore_clipboard.json")
+
+
+def _to_text(val):
+    if val is None:
+        return ""
+    if isinstance(val, str):
+        return val
+    if isinstance(val, (dict, list, tuple)):
+        try:
+            return json.dumps(val, indent=2, ensure_ascii=False)
+        except Exception:
+            return str(val)
+    return str(val)
+
+
+def _load_clipboard_file():
+    try:
+        if os.path.exists(_CLIPBOARD_FILE):
+            with open(_CLIPBOARD_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+    except Exception:
+        pass
+    return {}
+
+
+def _save_clipboard_file(data):
+    try:
+        with open(_CLIPBOARD_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _set_clipboard_value(name, value):
+    key = str(name).strip() if name is not None else "default"
+    if not key:
+        key = "default"
+    val = _to_text(value)
+    with _CLIPBOARD_LOCK:
+        _CLIPBOARD_STORE[key] = val
+        disk_data = _load_clipboard_file()
+        disk_data[key] = val
+        _save_clipboard_file(disk_data)
+    return val
+
+
+def _get_clipboard_value(name, default=""):
+    key = str(name).strip() if name is not None else "default"
+    if not key:
+        key = "default"
+    with _CLIPBOARD_LOCK:
+        if key in _CLIPBOARD_STORE:
+            return _CLIPBOARD_STORE[key]
+        disk_data = _load_clipboard_file()
+        if key in disk_data:
+            val = _to_text(disk_data[key])
+            _CLIPBOARD_STORE[key] = val
+            return val
+    return _to_text(default)
+
+
+class SalvatoreTextToClipboard:
+    """
+    Takes text as input and copies it to ComfyUI's internal clipboard.
+    The text persists in memory and across workflow runs.
+    Supports named clipboard slots (defaults to 'default').
+    """
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "clipboard_name": ("STRING", {"default": "default", "multiline": False}),
+                "text": ("STRING", {"default": "", "multiline": True}),
+            },
+            "optional": {
+                "input_text": (ANY_TYPE, {"forceInput": True}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("text",)
+    FUNCTION = "copy_to_clipboard"
+    OUTPUT_NODE = True
+    CATEGORY = "Salvatore Nodes/text"
+
+    @classmethod
+    def IS_CHANGED(s, clipboard_name="default", text="", input_text=None):
+        return float("nan")
+
+    def copy_to_clipboard(self, clipboard_name="default", text="", input_text=None):
+        content = input_text if input_text is not None else text
+        stored = _set_clipboard_value(clipboard_name, content)
+        return {"ui": {"text": [stored]}, "result": (stored,)}
+
+
+class SalvatoreTextFromClipboard:
+    """
+    Retrieves text from ComfyUI's internal clipboard and outputs it.
+    Can read text stored by SalvatoreTextToClipboard across different workflow runs.
+    Supports named clipboard slots (defaults to 'default').
+    """
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "clipboard_name": ("STRING", {"default": "default", "multiline": False}),
+            },
+            "optional": {
+                "default_value": ("STRING", {"default": "", "multiline": True}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("text",)
+    FUNCTION = "paste_from_clipboard"
+    CATEGORY = "Salvatore Nodes/text"
+
+    @classmethod
+    def IS_CHANGED(s, clipboard_name="default", default_value=""):
+        return float("nan")
+
+    def paste_from_clipboard(self, clipboard_name="default", default_value=""):
+        content = _get_clipboard_value(clipboard_name, default=default_value)
+        return {"ui": {"text": [content]}, "result": (content,)}
+
+
 NODE_CLASS_MAPPINGS = {
     "SalvatoreTimeString": SalvatoreTimeString,
     "SalvatoreSimplePatternReplace": SalvatoreSimplePatternReplace,
     "SalvatoreStringAppend": SalvatoreStringAppend,
     "SalvatorePromptWeight": SalvatorePromptWeight,
     "SalvatoreTextBox": SalvatoreTextBox,
+    "SalvatoreTextToClipboard": SalvatoreTextToClipboard,
+    "SalvatoreTextFromClipboard": SalvatoreTextFromClipboard,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -357,5 +505,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SalvatoreStringAppend": "Salvatore Simple String Combine",
     "SalvatorePromptWeight": "Salvatore Prompt Weight",
     "SalvatoreTextBox": "Salvatore Text Box",
+    "SalvatoreTextToClipboard": "Salvatore Text To Clipboard",
+    "SalvatoreTextFromClipboard": "Salvatore Text From Clipboard",
 }
 

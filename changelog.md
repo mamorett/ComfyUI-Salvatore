@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-25
+
+- Added "Salvatore Text To Clipboard" and "Salvatore Text From Clipboard" nodes - Internal ComfyUI clipboard persistence across workflow runs without any external system dependencies.
+
 ## 2026-04-23
 
 - Added "Salvatore Load Workflow and Extract Prompt" node - Accepts JSON workflow content as STRING input and extracts positive prompts from CLIPTextEncode nodes. Ideal for remote workflow JSON files.
