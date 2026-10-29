@@ -85,6 +85,10 @@ Nodes are organized into the following categories:
 - **Salvatore Save Positive Prompt** - Save positive prompt only to text file.
 - **Salvatore Load Workflow and Extract Prompt** - Load a JSON workflow from input and extract positive prompt(s) from it.
 
+### Salvatore Nodes/video
+
+- **FastVideo Generate** - Thin OpenAI-compatible HTTP client node (`GET /v1/models`, `POST /v1/videos`, `GET /v1/videos/{job_id}`, `GET /v1/videos/{job_id}/content`) for an existing FastVideo server. Encodes ComfyUI `IMAGE` inputs as `image_reference` base64 data URLs, polls job status with indeterminate progress messages, and returns the completed MP4 as a ComfyUI `VIDEO` output along with `job_id` and `status`.
+
 ## New Features
 
 ### Salvatore Load Workflow and Extract Prompt

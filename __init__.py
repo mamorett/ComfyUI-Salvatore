@@ -36,6 +36,17 @@ for _module_name in _module_files:
     # Store reference for later use
     globals()[_module_name] = _module
 
+# Load FastVideo ComfyUI subpackage
+_fastvideo_init = os.path.join(_module_dir, "fastvideo_comfyui", "__init__.py")
+_fastvideo_spec = importlib.util.spec_from_file_location(
+    "fastvideo_comfyui",
+    _fastvideo_init,
+    submodule_search_locations=[os.path.join(_module_dir, "fastvideo_comfyui")],
+)
+fastvideo_comfyui = importlib.util.module_from_spec(_fastvideo_spec)
+sys.modules["fastvideo_comfyui"] = fastvideo_comfyui
+_fastvideo_spec.loader.exec_module(fastvideo_comfyui)
+
 # Merge all NODE_CLASS_MAPPINGS into a single dictionary
 NODE_CLASS_MAPPINGS = {}
 NODE_CLASS_MAPPINGS.update(salvatore_loaders.NODE_CLASS_MAPPINGS)
@@ -50,6 +61,7 @@ NODE_CLASS_MAPPINGS.update(salvatore_upscaling.NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(salvatore_numbers.NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(salvatore_text.NODE_CLASS_MAPPINGS)
 NODE_CLASS_MAPPINGS.update(salvatore_io.NODE_CLASS_MAPPINGS)
+NODE_CLASS_MAPPINGS.update(fastvideo_comfyui.NODE_CLASS_MAPPINGS)
 
 # Merge all NODE_DISPLAY_NAME_MAPPINGS
 NODE_DISPLAY_NAME_MAPPINGS = {}
@@ -65,6 +77,7 @@ NODE_DISPLAY_NAME_MAPPINGS.update(getattr(salvatore_upscaling, 'NODE_DISPLAY_NAM
 NODE_DISPLAY_NAME_MAPPINGS.update(getattr(salvatore_numbers, 'NODE_DISPLAY_NAME_MAPPINGS', {}))
 NODE_DISPLAY_NAME_MAPPINGS.update(getattr(salvatore_text, 'NODE_DISPLAY_NAME_MAPPINGS', {}))
 NODE_DISPLAY_NAME_MAPPINGS.update(getattr(salvatore_io, 'NODE_DISPLAY_NAME_MAPPINGS', {}))
+NODE_DISPLAY_NAME_MAPPINGS.update(getattr(fastvideo_comfyui, 'NODE_DISPLAY_NAME_MAPPINGS', {}))
 
 WEB_DIRECTORY = "./js"
 

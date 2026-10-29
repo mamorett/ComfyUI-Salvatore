@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-29
+
+- Added "FastVideo Generate" node (`fastvideo_comfyui/`) — Thin HTTP client for FastVideo's OpenAI-compatible video generation contract (`/v1/models`, `/v1/videos`, `/v1/videos/{job_id}`, `/v1/videos/{job_id}/content`).
+
 ## 2026-10-25
 
 - Added "Salvatore Text To Clipboard" and "Salvatore Text From Clipboard" nodes - Internal ComfyUI clipboard persistence across workflow runs without any external system dependencies.
